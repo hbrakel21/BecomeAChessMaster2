@@ -142,3 +142,48 @@ button{
   padding:10px 12px;
   border-radius:10px;
   cur
+
+  .modal{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+
+.hidden{ display:none; }
+
+.modalCard{
+  background: #151517;
+  border: 1px solid #2a2a2f;
+  border-radius: 14px;
+  padding: 14px;
+  width: min(360px, 92vw);
+  box-shadow: 0 18px 60px rgba(0,0,0,.65);
+}
+
+.modalTitle{
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.modalBtns{
+  display:flex;
+  gap:10px;
+  justify-content:space-between;
+}
+
+.promoBtn{
+  flex:1;
+  font-size: 34px;
+  padding: 12px 0;
+  border-radius: 12px;
+}
+
+.modalHint{
+  margin-top: 10px;
+  color: #a9a9ad;
+  font-size: 12px;
+}
+
