@@ -1,45 +1,164 @@
-// Become a Chess Master - v2: real chess rules (castling, en passant, promotion choice, draws)
+// src/main.js
+// Become a Chess Master - main (boot + routing + wiring only)
 
-const BUILD = "v2.0.4"; // change this every time
-console.log("[BUILD]", BUILD);
+import { BUILD, resetGame, undoGame, canUndo } from "./engine.js";
+import { renderBoard, setViewFlipped } from "./render.js";
+import { initAcademyScreen } from "./academy.js";
 
 if (window.__chessLoaded) throw new Error("main.js loaded twice");
 window.__chessLoaded = true;
 
-const PIECES = {
-  w: { K:"♔", Q:"♕", R:"♖", B:"♗", N:"♘", P:"♙" },
-  b: { K:"♚", Q:"♛", R:"♜", B:"♝", N:"♞", P:"♟" },
-};
+console.log("[BUILD]", BUILD);
 
-(function injectRouterStyles(){
-  const css = `
-    .topNav{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}
-    .navBtn{padding:8px 10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:#fff;border-radius:10px;cursor:pointer}
-    .navBtn.active{border-color:rgba(212,175,55,.7);box-shadow:0 0 0 2px rgba(212,175,55,.15) inset}
-    .screen{display:none}
-    .screen.active{display:block}
+let currentScreen = "home";
 
-    /* Main Menu */
-    .menuWrap{min-height:calc(100vh - 140px);display:grid;place-items:center;padding:18px}
-    .menuCard{width:min(820px,100%);padding:22px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);box-shadow:0 12px 50px rgba(0,0,0,.35)}
-    .menuTitle{font-size:22px;font-weight:800;letter-spacing:.2px;margin:0 0 10px}
-    .menuSub{opacity:.85;margin:0 0 16px;line-height:1.35}
-    .menuGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .menuBtn{padding:14px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#fff;cursor:pointer;text-align:left}
-    .menuBtn:hover{border-color:rgba(212,175,55,.55)}
-    .menuBtnSmall{opacity:.85;font-size:12px;margin-top:6px}
-    .menuRow{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
-    .menuBtnWide{flex:1;min-width:220px}
-    .menuHint{opacity:.75;font-size:12px;margin-top:12px}
-    .hidden{display:none !important}
-  `;
-  const style = document.createElement("style");
-  style.id = "routerStyles";
-  style.textContent = css;
-  document.head.appendChild(style);
-})();
+/* =========================
+   Boot
+   ========================= */
 
-(function mountAppShell(){
+injectShellStyles();
+mountAppShell();
+setBuildLabels();
+
+initTopNav();
+initMainMenu();
+initKeyboardShortcuts();
+initRouteFromHash();
+
+wirePlayButtons();
+initAcademyScreen();
+
+resetGame();
+renderIfPlay();
+
+/* =========================
+   Router
+   ========================= */
+
+function routeTo(screen) {
+  currentScreen = screen;
+
+  document.querySelectorAll(".screen").forEach((s) => {
+    s.classList.toggle("active", s.id === "screen-" + screen);
+  });
+
+  document.querySelectorAll(".navBtn").forEach((b) => {
+    const on = b.dataset.screen === screen;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-current", on ? "page" : "false");
+  });
+
+  // hide nav on home for a cleaner first impression
+  const topNav = document.getElementById("topNav");
+  if (topNav) topNav.classList.toggle("hidden", screen === "home");
+
+  // remember for Continue
+  try { localStorage.setItem("lastScreen", screen); } catch {}
+
+  // update URL
+  history.replaceState(null, "", "#" + screen);
+
+  renderIfPlay();
+}
+
+function renderIfPlay() {
+  if (currentScreen !== "play") return;
+  renderBoard();
+}
+
+/* =========================
+   Wiring
+   ========================= */
+
+function initTopNav() {
+  const nav = document.getElementById("topNav");
+  if (!nav) return;
+
+  nav.addEventListener("click", (e) => {
+    const btn = e.target.closest(".navBtn");
+    if (!btn) return;
+    routeTo(btn.dataset.screen);
+  });
+}
+
+function initMainMenu() {
+  const home = document.getElementById("screen-home");
+  if (!home) return;
+
+  home.addEventListener("click", (e) => {
+    const go = e.target.closest("[data-go]")?.dataset?.go;
+    if (go) routeTo(go);
+  });
+
+  const btnContinue = document.getElementById("btnContinue");
+  const continueHint = document.getElementById("continueHint");
+
+  function refreshContinueLabel() {
+    const last = safeLastScreen();
+    if (continueHint) continueHint.textContent = `Resume: ${last}`;
+  }
+
+  refreshContinueLabel();
+
+  btnContinue?.addEventListener("click", () => {
+    routeTo(safeLastScreen());
+  });
+}
+
+function initKeyboardShortcuts() {
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") routeTo("home");
+  });
+}
+
+function initRouteFromHash() {
+  const h = (location.hash || "#home").replace("#", "").trim();
+  const valid = new Set(["home", "play", "academy", "quick", "ladder", "unlocks", "settings"]);
+  routeTo(valid.has(h) ? h : "home");
+}
+
+function wirePlayButtons() {
+  document.getElementById("btnReset")?.addEventListener("click", () => {
+    resetGame();
+    renderIfPlay();
+  });
+
+  document.getElementById("btnUndo")?.addEventListener("click", () => {
+    if (!canUndo()) return;
+    undoGame();
+    renderIfPlay();
+  });
+
+  document.getElementById("btnFlip")?.addEventListener("click", () => {
+    setViewFlipped((v) => !v);
+    renderIfPlay();
+  });
+}
+
+/* =========================
+   Helpers
+   ========================= */
+
+function safeLastScreen() {
+  let last = "play";
+  try { last = localStorage.getItem("lastScreen") || "play"; } catch {}
+  if (!last || last === "home") last = "play";
+  return last;
+}
+
+function setBuildLabels() {
+  const buildLabel = document.getElementById("buildLabel");
+  if (buildLabel) buildLabel.textContent = "Build " + BUILD;
+
+  const buildLabelHome = document.getElementById("buildLabelHome");
+  if (buildLabelHome) buildLabelHome.textContent = "Build " + BUILD;
+}
+
+/* =========================
+   Shell
+   ========================= */
+
+function mountAppShell() {
   document.body.innerHTML = `
     <div class="app">
       <div class="header">
@@ -62,32 +181,32 @@ const PIECES = {
       </div>
 
       <main>
-      <section class="screen" id="screen-home">
-  <div class="menuWrap">
-    <div class="menuCard">
-      <h2 class="menuTitle">Main Menu</h2>
-      <p class="menuSub">Jump in fast, no clutter. Your current build is <span id="buildLabelHome"></span>.</p>
+        <section class="screen" id="screen-home">
+          <div class="menuWrap">
+            <div class="menuCard">
+              <h2 class="menuTitle">Main Menu</h2>
+              <p class="menuSub">Jump in fast, no clutter. Your current build is <span id="buildLabelHome"></span>.</p>
 
-      <div class="menuRow">
-        <button class="menuBtn menuBtnWide" id="btnContinue">
-          Continue
-          <div class="menuBtnSmall" id="continueHint">Resume where you left off</div>
-        </button>
-      </div>
+              <div class="menuRow">
+                <button class="menuBtn menuBtnWide" id="btnContinue">
+                  Continue
+                  <div class="menuBtnSmall" id="continueHint">Resume where you left off</div>
+                </button>
+              </div>
 
-      <div class="menuGrid" style="margin-top:10px">
-        <button class="menuBtn" data-go="play">Play<div class="menuBtnSmall">Local 2-player, real rules</div></button>
-        <button class="menuBtn" data-go="quick">Quick Match<div class="menuBtnSmall">AI buttons later</div></button>
-        <button class="menuBtn" data-go="academy">Academy<div class="menuBtnSmall">Lessons and drills later</div></button>
-        <button class="menuBtn" data-go="ladder">Ladder<div class="menuBtnSmall">Ranked progression later</div></button>
-        <button class="menuBtn" data-go="unlocks">Unlocks<div class="menuBtnSmall">Progress + cosmetics later</div></button>
-        <button class="menuBtn" data-go="settings">Settings<div class="menuBtnSmall">Visuals and helpers</div></button>
-      </div>
+              <div class="menuGrid" style="margin-top:10px">
+                <button class="menuBtn" data-go="play">Play<div class="menuBtnSmall">Local 2-player, real rules</div></button>
+                <button class="menuBtn" data-go="quick">Quick Match<div class="menuBtnSmall">AI buttons later</div></button>
+                <button class="menuBtn" data-go="academy">Academy<div class="menuBtnSmall">Learn by doing</div></button>
+                <button class="menuBtn" data-go="ladder">Ladder<div class="menuBtnSmall">Progression later</div></button>
+                <button class="menuBtn" data-go="unlocks">Unlocks<div class="menuBtnSmall">Rewards later</div></button>
+                <button class="menuBtn" data-go="settings">Settings<div class="menuBtnSmall">Helpers and visuals</div></button>
+              </div>
 
-      <div class="menuHint">Tip: press Escape anytime to return here.</div>
-    </div>
-  </div>
-</section>
+              <div class="menuHint">Tip: press Escape anytime to return here.</div>
+            </div>
+          </div>
+        </section>
 
         <section class="screen" id="screen-play">
           <div class="boardWrap">
@@ -121,7 +240,7 @@ const PIECES = {
             </div>
 
             <div class="small">
-              Includes: castling, en passant, promotion choice, 50-move, repetition, insufficient material. <br/>
+              Includes: castling, en passant, promotion choice, 50-move, repetition, insufficient material.<br/>
               Not yet: clocks, PGN export, AI, learn mode.
             </div>
           </aside>
@@ -135,16 +254,11 @@ const PIECES = {
           </div>
         </section>
 
-        <section class="screen" id="screen-academy">
-          <div class="side">
-            <div class="label">Academy</div>
-            <div class="small">Next: modules, lessons, drills, tests, XP.</div>
-          </div>
-        </section>
+        <section class="screen" id="screen-academy"></section>
 
         <section class="screen" id="screen-quick">
           <div class="side">
-            <div class="label">Quick Match vs AI</div>
+            <div class="label">Quick Match</div>
             <div class="small">Next: Easy, Medium, Hard buttons + start game.</div>
           </div>
         </section>
@@ -172,665 +286,32 @@ const PIECES = {
       </main>
     </div>
   `;
-})();
-
-/* ---------------- DOM refs (THIS was the missing part) ---------------- */
-const boardNode  = document.getElementById("board");
-const turnLabel  = document.getElementById("turnLabel");
-const stateLabel = document.getElementById("stateLabel");
-const statusTop  = document.getElementById("statusTop");
-const lastMoveEl = document.getElementById("lastMove");
-const promoModal = document.getElementById("promoModal");
-const promoBtns  = document.getElementById("promoBtns");
-const gameOverEl = document.getElementById("gameOver");
-
-const buildLabel = document.getElementById("buildLabel");
-if (buildLabel) buildLabel.textContent = "Build " + BUILD;
-
-/* ---------------- Router ---------------- */
-let viewFlipped = false;
-let currentScreen = "play";
-
-function routeTo(screen){
-  currentScreen = screen;
-
-  document.querySelectorAll(".screen").forEach(s => {
-    s.classList.toggle("active", s.id === "screen-" + screen);
-      // Steam-ish first impression: hide nav on home
-  const topNav = document.getElementById("topNav");
-  if (topNav) topNav.classList.toggle("hidden", screen === "home");
-
-  // remember where you were
-  try { localStorage.setItem("lastScreen", screen); } catch {}
-  });
-
-  document.querySelectorAll(".navBtn").forEach(b => {
-    const on = b.dataset.screen === screen;
-    b.classList.toggle("active", on);
-    b.setAttribute("aria-current", on ? "page" : "false");
-  });
-
-  history.replaceState(null, "", "#" + screen);
 }
 
-// init nav clicks + default route (no render here, render happens after reset())
-document.getElementById("topNav")?.addEventListener("click", (e) => {
-  const btn = e.target.closest(".navBtn");
-  if(!btn) return;
-  routeTo(btn.dataset.screen);
-  // only rerender board if on play screen
-  if(btn.dataset.screen === "play") render();
-});
+function injectShellStyles() {
+  const css = `
+    .topNav{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}
+    .navBtn{padding:8px 10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:#fff;border-radius:10px;cursor:pointer}
+    .navBtn.active{border-color:rgba(212,175,55,.7);box-shadow:0 0 0 2px rgba(212,175,55,.15) inset}
+    .screen{display:none}
+    .screen.active{display:block}
+    .hidden{display:none !important}
 
-(function initRouteFromHash(){
-  const h = (location.hash || "#home").replace("#","").trim();
-  const valid = new Set(["home","play","academy","quick","ladder","unlocks","settings"]);
-  routeTo(valid.has(h) ? h : "home");
-})();
-
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") routeTo("home");
-});
-
-/* ---------------- Game state ---------------- */
-let state;
-reset();
-
-function reset(){
-  state = {
-    board: startPosition(),
-    turn: "w",
-    selected: null,
-    legalTargets: [],
-    history: [],
-    lastMove: null,
-    castling: { w:{K:true,Q:true}, b:{K:true,Q:true} },
-    enPassant: null,
-    halfmove: 0,
-    fullmove: 1,
-    repetition: new Map(),
-    gameOver: null,
-    pendingPromotion: null,
-  };
-
-  bumpRepetition();
-  closePromotionModal();
-  render();
+    .menuWrap{min-height:calc(100vh - 140px);display:grid;place-items:center;padding:18px}
+    .menuCard{width:min(820px,100%);padding:22px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);box-shadow:0 12px 50px rgba(0,0,0,.35)}
+    .menuTitle{font-size:22px;font-weight:800;letter-spacing:.2px;margin:0 0 10px}
+    .menuSub{opacity:.85;margin:0 0 16px;line-height:1.35}
+    .menuGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .menuBtn{padding:14px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#fff;cursor:pointer;text-align:left}
+    .menuBtn:hover{border-color:rgba(212,175,55,.55)}
+    .menuBtnSmall{opacity:.85;font-size:12px;margin-top:6px}
+    .menuRow{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .menuBtnWide{flex:1;min-width:220px}
+    .menuHint{opacity:.75;font-size:12px;margin-top:12px}
+  `;
+  const style = document.createElement("style");
+  style.id = "mainShellStyles";
+  style.textContent = css;
+  document.head.appendChild(style);
 }
-
-function startPosition(){
-  const empty = () => Array.from({length:8}, () => Array(8).fill(null));
-  const b = empty();
-  const back = ["R","N","B","Q","K","B","N","R"];
-  for(let c=0;c<8;c++){
-    b[0][c] = {c:"b", t:back[c]};
-    b[1][c] = {c:"b", t:"P"};
-    b[6][c] = {c:"w", t:"P"};
-    b[7][c] = {c:"w", t:back[c]};
-  }
-  return b;
-}
-
-function render(){
-  if(!boardNode) return;
-
-  boardNode.innerHTML = "";
-  const oriented = getOrientedSquares();
-  const b = state.board;
-
-  const inCheck = isKingInCheck(b, state.turn, state);
-  const anyMoves = hasAnyLegalMove(b, state.turn, state);
-
-  if(!state.gameOver){
-    if(!anyMoves){
-      state.gameOver = inCheck ? {type:"checkmate"} : {type:"stalemate"};
-    } else {
-      const draw = checkDraws();
-      if(draw) state.gameOver = {type:"draw", reason: draw};
-    }
-  }
-
-  const status =
-    state.gameOver?.type === "checkmate" ? "Checkmate" :
-    state.gameOver?.type === "stalemate" ? "Stalemate" :
-    state.gameOver?.type === "draw" ? `Draw (${state.gameOver.reason})` :
-    (inCheck ? "Check" : "Playing");
-
-  if (turnLabel)  turnLabel.textContent  = state.turn === "w" ? "White" : "Black";
-  if (stateLabel) stateLabel.textContent = status;
-  if (statusTop)  statusTop.textContent  = (status === "Playing" ? "" : status);
-  if (lastMoveEl) lastMoveEl.textContent = state.lastMove ? state.lastMove : "—";
-
-  const kingPos = findKing(b, state.turn);
-  const kingKey = kingPos ? `${kingPos.r},${kingPos.c}` : null;
-
-  for(const sq of oriented){
-    const {r,c} = sq;
-    const cell = document.createElement("div");
-    cell.className = "square " + (((r + c) % 2 === 0) ? "light" : "dark");
-    cell.dataset.r = r;
-    cell.dataset.c = c;
-
-    const p = b[r][c];
-    if(p) cell.textContent = PIECES[p.c][p.t];
-
-    if(state.selected && state.selected.r === r && state.selected.c === c) cell.classList.add("selected");
-
-    const target = state.legalTargets.find(m => m.r === r && m.c === c);
-    if(target){
-      if(b[r][c] || target.special === "ep") cell.classList.add("captureHint");
-      else cell.classList.add("hint");
-    }
-
-    if(kingKey === `${r},${c}` && isKingInCheck(b, state.turn, state)) cell.classList.add("check");
-
-    cell.addEventListener("click", onSquareClick);
-    boardNode.appendChild(cell);
-  }
-
-  const locked = !!state.gameOver || !!state.pendingPromotion;
-  boardNode.style.pointerEvents = locked ? "none" : "auto";
-
-  const overText =
-    state.gameOver?.type === "checkmate" ? "CHECKMATE — press Reset" :
-    state.gameOver?.type === "stalemate" ? "STALEMATE — press Reset" :
-    state.gameOver?.type === "draw" ? `DRAW (${state.gameOver.reason}) — press Reset` :
-    "";
-
-  const isOver = !!state.gameOver;
-  if (gameOverEl){
-    gameOverEl.classList.toggle("hidden", !isOver);
-    gameOverEl.textContent = overText;
-  }
-}
-
-function getOrientedSquares(){
-  const squares = [];
-  if(!viewFlipped){
-    for(let r=0;r<8;r++) for(let c=0;c<8;c++) squares.push({r,c});
-  } else {
-    for(let r=7;r>=0;r--) for(let c=7;c>=0;c--) squares.push({r,c});
-  }
-  return squares;
-}
-
-function onSquareClick(e){
-  if(state.gameOver || state.pendingPromotion) return;
-
-  const r = +e.currentTarget.dataset.r;
-  const c = +e.currentTarget.dataset.c;
-  const b = state.board;
-  const p = b[r][c];
-
-  if(state.selected){
-    const target = state.legalTargets.find(m => m.r === r && m.c === c);
-    if(target){
-      makeMove(state.selected, {r,c}, target.special || null);
-      return;
-    }
-  }
-
-  if(p && p.c === state.turn){
-    state.selected = {r,c};
-    state.legalTargets = legalMovesFrom(b, state.turn, r, c, state);
-  } else {
-    state.selected = null;
-    state.legalTargets = [];
-  }
-
-  render();
-}
-
-function makeMove(from, to, special=null, promoChoice=null){
-  const snap = snapshotState();
-  state.history.push(snap);
-
-  const b = state.board;
-  const moving = b[from.r][from.c];
-  const targetPiece = b[to.r][to.c];
-
-  const isPawnMove = moving.t === "P";
-  const isCapture = !!targetPiece || special === "ep";
-  state.halfmove = (isPawnMove || isCapture) ? 0 : (state.halfmove + 1);
-
-  state.enPassant = null;
-
-  updateCastlingRightsOnMove(from, to, moving, targetPiece, special);
-
-  if(special === "castleK" || special === "castleQ"){
-    b[to.r][to.c] = moving;
-    b[from.r][from.c] = null;
-
-    const row = moving.c === "w" ? 7 : 0;
-    if(special === "castleK"){
-      b[row][5] = b[row][7];
-      b[row][7] = null;
-    } else {
-      b[row][3] = b[row][0];
-      b[row][0] = null;
-    }
-  } else if(special === "ep"){
-    b[to.r][to.c] = moving;
-    b[from.r][from.c] = null;
-    const dir = moving.c === "w" ? 1 : -1;
-    b[to.r + dir][to.c] = null;
-  } else {
-    b[to.r][to.c] = moving;
-    b[from.r][from.c] = null;
-  }
-
-  if(moving.t === "P" && Math.abs(to.r - from.r) === 2){
-    const midR = (to.r + from.r) / 2;
-    state.enPassant = { r: midR, c: from.c };
-  }
-
-  if(moving.t === "P"){
-    if((moving.c === "w" && to.r === 0) || (moving.c === "b" && to.r === 7)){
-      if(!promoChoice){
-        state.pendingPromotion = { from, to, color: moving.c };
-        openPromotionModal(moving.c);
-        state.selected = null;
-        state.legalTargets = [];
-        render();
-        return;
-      } else {
-        moving.t = promoChoice;
-      }
-    }
-  }
-
-  state.lastMove = formatMove(from, to, moving, special, promoChoice, isCapture);
-
-  state.selected = null;
-  state.legalTargets = [];
-  state.turn = (state.turn === "w") ? "b" : "w";
-  if(state.turn === "w") state.fullmove += 1;
-
-  bumpRepetition();
-  state.gameOver = null;
-  render();
-}
-
-function updateCastlingRightsOnMove(from, to, moving, captured, special){
-  const side = moving.c;
-
-  if(moving.t === "K"){
-    state.castling[side].K = false;
-    state.castling[side].Q = false;
-  }
-
-  if(moving.t === "R"){
-    if(side === "w" && from.r === 7 && from.c === 0) state.castling.w.Q = false;
-    if(side === "w" && from.r === 7 && from.c === 7) state.castling.w.K = false;
-    if(side === "b" && from.r === 0 && from.c === 0) state.castling.b.Q = false;
-    if(side === "b" && from.r === 0 && from.c === 7) state.castling.b.K = false;
-  }
-
-  if(captured && captured.t === "R"){
-    if(captured.c === "w" && to.r === 7 && to.c === 0) state.castling.w.Q = false;
-    if(captured.c === "w" && to.r === 7 && to.c === 7) state.castling.w.K = false;
-    if(captured.c === "b" && to.r === 0 && to.c === 0) state.castling.b.Q = false;
-    if(captured.c === "b" && to.r === 0 && to.c === 7) state.castling.b.K = false;
-  }
-}
-
-function undo(){
-  if(state.history.length === 0) return;
-  state = state.history.pop();
-  closePromotionModal();
-  render();
-}
-
-function snapshotState(){
-  const b = state.board.map(row => row.map(p => p ? ({c:p.c, t:p.t}) : null));
-  const rep = new Map(state.repetition);
-  return {
-    board: b,
-    turn: state.turn,
-    selected: null,
-    legalTargets: [],
-    history: state.history.slice(0),
-    lastMove: state.lastMove,
-    castling: { w:{...state.castling.w}, b:{...state.castling.b} },
-    enPassant: state.enPassant ? {...state.enPassant} : null,
-    halfmove: state.halfmove,
-    fullmove: state.fullmove,
-    repetition: rep,
-    gameOver: state.gameOver ? {...state.gameOver} : null,
-    pendingPromotion: null
-  };
-}
-
-/* ---------------- RULES ---------------- */
-
-function legalMovesFrom(b, side, r, c, st){
-  const p = b[r][c];
-  if(!p || p.c !== side) return [];
-
-  const pseudo = pseudoMoves(b, r, c, p, st, false);
-  const legal = [];
-
-  for(const m of pseudo){
-    const bb = applyMoveCopy(b, {r,c}, m, p, st);
-    if(!isKingInCheck(bb, side, st, m)) legal.push(m);
-  }
-
-  return legal;
-}
-
-function hasAnyLegalMove(b, side, st){
-  for(let r=0;r<8;r++){
-    for(let c=0;c<8;c++){
-      const p = b[r][c];
-      if(p && p.c === side){
-        if(legalMovesFrom(b, side, r, c, st).length > 0) return true;
-      }
-    }
-  }
-  return false;
-}
-
-function applyMoveCopy(b, from, toMove, movingPiece, st){
-  const copy = b.map(row => row.map(p => p ? ({c:p.c, t:p.t}) : null));
-  const fromP = copy[from.r][from.c];
-  const to = {r: toMove.r, c: toMove.c};
-  const special = toMove.special || null;
-
-  if(special === "castleK" || special === "castleQ"){
-    copy[to.r][to.c] = fromP;
-    copy[from.r][from.c] = null;
-    const row = fromP.c === "w" ? 7 : 0;
-    if(special === "castleK"){
-      copy[row][5] = copy[row][7];
-      copy[row][7] = null;
-    } else {
-      copy[row][3] = copy[row][0];
-      copy[row][0] = null;
-    }
-    return copy;
-  }
-
-  if(special === "ep"){
-    copy[to.r][to.c] = fromP;
-    copy[from.r][from.c] = null;
-    const dir = fromP.c === "w" ? 1 : -1;
-    copy[to.r + dir][to.c] = null;
-    return copy;
-  }
-
-  copy[to.r][to.c] = fromP;
-  copy[from.r][from.c] = null;
-
-  if(fromP.t === "P" && ((fromP.c === "w" && to.r === 0) || (fromP.c === "b" && to.r === 7))){
-    fromP.t = "Q";
-  }
-
-  return copy;
-}
-
-function isKingInCheck(b, side, st, lastAppliedMove=null){
-  const k = findKing(b, side);
-  if(!k) return false;
-  const enemy = (side === "w") ? "b" : "w";
-  return isSquareAttacked(b, k.r, k.c, enemy, st);
-}
-
-function findKing(b, side){
-  for(let r=0;r<8;r++){
-    for(let c=0;c<8;c++){
-      const p = b[r][c];
-      if(p && p.c === side && p.t === "K") return {r,c};
-    }
-  }
-  return null;
-}
-
-function isSquareAttacked(b, r, c, bySide, st){
-  for(let rr=0; rr<8; rr++){
-    for(let cc=0; cc<8; cc++){
-      const p = b[rr][cc];
-      if(p && p.c === bySide){
-        const moves = pseudoMoves(b, rr, cc, p, st, true);
-        if(moves.some(m => m.r === r && m.c === c)) return true;
-      }
-    }
-  }
-  return false;
-}
-
-function pseudoMoves(b, r, c, p, st, attackOnly=false){
-  const res = [];
-  const side = p.c;
-  const enemy = side === "w" ? "b" : "w";
-
-  const inside = (rr,cc) => rr>=0 && rr<8 && cc>=0 && cc<8;
-  const at = (rr,cc) => b[rr][cc];
-
-  if(p.t === "P"){
-    const dir = (side === "w") ? -1 : 1;
-    const startRow = (side === "w") ? 6 : 1;
-
-    for(const dc of [-1, 1]){
-      const rr = r + dir, cc = c + dc;
-      if(!inside(rr,cc)) continue;
-      if(attackOnly){
-        res.push({r:rr, c:cc});
-      } else {
-        const target = at(rr,cc);
-        if(target && target.c === enemy) res.push({r:rr, c:cc});
-        if(st.enPassant && st.enPassant.r === rr && st.enPassant.c === cc){
-          res.push({r:rr, c:cc, special:"ep"});
-        }
-      }
-    }
-
-    if(attackOnly) return res;
-
-    const one = r + dir;
-    if(inside(one,c) && !at(one,c)){
-      res.push({r:one, c});
-      const two = r + 2*dir;
-      if(r === startRow && inside(two,c) && !at(two,c)){
-        res.push({r:two, c});
-      }
-    }
-    return res;
-  }
-
-  if(p.t === "N"){
-    const jumps = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
-    for(const [dr,dc] of jumps){
-      const rr=r+dr, cc=c+dc;
-      if(!inside(rr,cc)) continue;
-      const t = at(rr,cc);
-      if(!t || t.c === enemy) res.push({r:rr, c:cc});
-    }
-    return res;
-  }
-
-  if(p.t === "K"){
-    for(let dr=-1; dr<=1; dr++){
-      for(let dc=-1; dc<=1; dc++){
-        if(dr===0 && dc===0) continue;
-        const rr=r+dr, cc=c+dc;
-        if(!inside(rr,cc)) continue;
-        const t = at(rr,cc);
-        if(!t || t.c === enemy) res.push({r:rr, c:cc});
-      }
-    }
-
-    if(attackOnly) return res;
-
-    const homeRow = side === "w" ? 7 : 0;
-    if(r === homeRow && c === 4){
-      const rights = st.castling[side];
-      if(!isSquareAttacked(b, homeRow, 4, enemy, st)){
-        if(rights.K && !at(homeRow,5) && !at(homeRow,6) && at(homeRow,7)?.t === "R" && at(homeRow,7)?.c === side){
-          if(!isSquareAttacked(b, homeRow, 5, enemy, st) && !isSquareAttacked(b, homeRow, 6, enemy, st)){
-            res.push({r:homeRow, c:6, special:"castleK"});
-          }
-        }
-        if(rights.Q && !at(homeRow,3) && !at(homeRow,2) && !at(homeRow,1) && at(homeRow,0)?.t === "R" && at(homeRow,0)?.c === side){
-          if(!isSquareAttacked(b, homeRow, 3, enemy, st) && !isSquareAttacked(b, homeRow, 2, enemy, st)){
-            res.push({r:homeRow, c:2, special:"castleQ"});
-          }
-        }
-      }
-    }
-
-    return res;
-  }
-
-  const sliders = {
-    B: [[-1,-1],[-1,1],[1,-1],[1,1]],
-    R: [[-1,0],[1,0],[0,-1],[0,1]],
-    Q: [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]]
-  };
-
-  if(sliders[p.t]){
-    for(const [dr,dc] of sliders[p.t]){
-      let rr=r+dr, cc=c+dc;
-      while(inside(rr,cc)){
-        const t = at(rr,cc);
-        if(!t){
-          res.push({r:rr, c:cc});
-        } else {
-          if(t.c === enemy) res.push({r:rr, c:cc});
-          break;
-        }
-        rr += dr; cc += dc;
-      }
-    }
-    return res;
-  }
-
-  return res;
-}
-
-/* ---------------- DRAWS ---------------- */
-
-function checkDraws(){
-  if(state.halfmove >= 100) return "50-move";
-  if(isThreefold()) return "threefold";
-  const ins = insufficientMaterial(state.board);
-  if(ins) return ins;
-  return null;
-}
-
-function bumpRepetition(){
-  const key = positionKey();
-  const prev = state.repetition.get(key) || 0;
-  state.repetition.set(key, prev + 1);
-}
-
-function isThreefold(){
-  const key = positionKey();
-  return (state.repetition.get(key) || 0) >= 3;
-}
-
-function positionKey(){
-  const b = state.board;
-  let s = "";
-  for(let r=0;r<8;r++){
-    for(let c=0;c<8;c++){
-      const p = b[r][c];
-      if(!p) s += ".";
-      else s += (p.c === "w" ? p.t : p.t.toLowerCase());
-    }
-    s += "/";
-  }
-  const turn = state.turn;
-  const cst =
-    (state.castling.w.K ? "K" : "") +
-    (state.castling.w.Q ? "Q" : "") +
-    (state.castling.b.K ? "k" : "") +
-    (state.castling.b.Q ? "q" : "") || "-";
-
-  const ep = state.enPassant ? String.fromCharCode(97 + state.enPassant.c) : "-";
-  return `${s} ${turn} ${cst} ${ep}`;
-}
-
-function insufficientMaterial(b){
-  const pieces = [];
-  for(let r=0;r<8;r++){
-    for(let c=0;c<8;c++){
-      const p = b[r][c];
-      if(p) pieces.push({r,c,...p});
-    }
-  }
-
-  const nonKings = pieces.filter(x => x.t !== "K");
-  if(nonKings.length === 0) return "insufficient";
-
-  const hasPawnRookQueen = nonKings.some(x => x.t === "P" || x.t === "R" || x.t === "Q");
-  if(hasPawnRookQueen) return null;
-
-  if(nonKings.length === 1) return "insufficient";
-
-  const allBishops = nonKings.every(x => x.t === "B");
-  if(allBishops){
-    const colors = nonKings.map(x => (x.r + x.c) % 2);
-    const allSame = colors.every(v => v === colors[0]);
-    if(allSame) return "insufficient";
-  }
-
-  return null;
-}
-
-/* ---------------- PROMOTION UI ---------------- */
-
-function openPromotionModal(color){
-  if(!promoBtns || !promoModal) return;
-  promoBtns.innerHTML = "";
-  const choices = ["Q","R","B","N"];
-  for(const t of choices){
-    const btn = document.createElement("button");
-    btn.className = "promoBtn";
-    btn.textContent = PIECES[color][t];
-    btn.addEventListener("click", () => choosePromotion(t));
-    promoBtns.appendChild(btn);
-  }
-  promoModal.classList.remove("hidden");
-}
-
-function closePromotionModal(){
-  if(!promoModal || !promoBtns) return;
-  promoModal.classList.add("hidden");
-  promoBtns.innerHTML = "";
-  if(state) state.pendingPromotion = null;
-}
-
-function choosePromotion(t){
-  const pend = state.pendingPromotion;
-  if(!pend) return;
-  closePromotionModal();
-  makeMove(pend.from, pend.to, null, t);
-}
-
-/* ---------------- MOVE TEXT ---------------- */
-
-function formatMove(from, to, moving, special, promoChoice, isCapture){
-  const file = c => String.fromCharCode(97 + c);
-  const rank = r => String(8 - r);
-
-  if(special === "castleK") return "O-O";
-  if(special === "castleQ") return "O-O-O";
-
-  const pieceLetter = moving.t === "P" ? "" : moving.t;
-  const capture = isCapture ? "x" : "-";
-  const s = `${pieceLetter}${file(from.c)}${rank(from.r)}${capture}${file(to.c)}${rank(to.r)}`;
-
-  if(moving.t === "P" && (to.r === 0 || to.r === 7)){
-    return `${s}=${promoChoice || "Q"}`;
-  }
-  if(special === "ep") return `${s} e.p.`;
-  return s;
-}
-
-/* ---------------- Buttons wiring ---------------- */
-document.getElementById("btnUndo")?.addEventListener("click", undo);
-document.getElementById("btnReset")?.addEventListener("click", reset);
-document.getElementById("btnFlip")?.addEventListener("click", () => { viewFlipped = !viewFlipped; render(); });
-const buildLabelHome = document.getElementById("buildLabelHome");
-if (buildLabelHome) buildLabelHome.textContent = "Build " + BUILD;
 
