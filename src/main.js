@@ -154,42 +154,8 @@ function routeTo(screen){
   // url hash
   history.replaceState(null, "", "#" + screen);
 
-  // when coming back to play, re-render board
-  if(screen === "play") render();
+    if(screen === "play") render();
 }
-
-// wire nav clicks
-document.getElementById("topNav").addEventListener("click", (e) => {
-  const btn = e.target.closest(".navBtn");
-  if(!btn) return;
-  routeTo(btn.dataset.screen);
-});
-
-// initial route from hash
-(function initRoute(){
-  const h = (location.hash || "").replace("#", "").trim();
-  const valid = new Set(["play","academy","quick","ladder","unlocks","settings"]);
-  routeTo(valid.has(h) ? h : "play");
-})();
-
-
-const turnLabel = document.getElementById("turnLabel");
-const stateLabel = document.getElementById("stateLabel");
-const statusTop = document.getElementById("statusTop"); 
-const lastMoveEl = document.getElementById("lastMove");
-const promoModal = document.getElementById("promoModal");
-const promoBtns = document.getElementById("promoBtns");
-const gameOverEl = document.getElementById("gameOver");
-document.title = "Become a Chess Master (" + BUILD + ")";
-const buildLabel = document.getElementById("buildLabel");
-if(buildLabel) buildLabel.textContent = "Build " + BUILD;
-
-document.getElementById("btnUndo").addEventListener("click", undo);
-document.getElementById("btnReset").addEventListener("click", reset);
-document.getElementById("btnFlip").addEventListener("click", () => {
-  viewFlipped = !viewFlipped;
-  render();
-});
 
 // piece: {c:'w'|'b', t:'P'|'N'|'B'|'R'|'Q'|'K'}
 let state;
