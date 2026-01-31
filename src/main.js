@@ -10,6 +10,7 @@ const PIECES = {
   w: { K:"♔", Q:"♕", R:"♖", B:"♗", N:"♘", P:"♙" },
   b: { K:"♚", Q:"♛", R:"♜", B:"♝", N:"♞", P:"♟" },
 };
+
 (function injectRouterStyles(){
   const css = `
     .topNav{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}
@@ -27,24 +28,23 @@ const PIECES = {
 (function mountAppShell(){
   document.body.innerHTML = `
     <div class="app">
-<div class="header">
-  <div>
-    <h1>Become a Chess Master</h1>
-    <div class="sub">Local 2-player • legal moves • real rules • <span id="buildLabel"></span></div>
+      <div class="header">
+        <div>
+          <h1>Become a Chess Master</h1>
+          <div class="sub">Local 2-player • legal moves • real rules • <span id="buildLabel"></span></div>
 
-    <div class="topNav" id="topNav">
-      <button class="navBtn" data-screen="play">Play</button>
-      <button class="navBtn" data-screen="academy">Academy</button>
-      <button class="navBtn" data-screen="quick">Quick Match</button>
-      <button class="navBtn" data-screen="ladder">Ladder</button>
-      <button class="navBtn" data-screen="unlocks">Unlocks</button>
-      <button class="navBtn" data-screen="settings">Settings</button>
-    </div>
-  </div>
+          <div class="topNav" id="topNav">
+            <button class="navBtn" data-screen="play">Play</button>
+            <button class="navBtn" data-screen="academy">Academy</button>
+            <button class="navBtn" data-screen="quick">Quick Match</button>
+            <button class="navBtn" data-screen="ladder">Ladder</button>
+            <button class="navBtn" data-screen="unlocks">Unlocks</button>
+            <button class="navBtn" data-screen="settings">Settings</button>
+          </div>
+        </div>
 
-  <div class="sub" id="statusTop"></div>
-</div>
-     
+        <div class="sub" id="statusTop"></div>
+      </div>
 
       <main>
         <section class="screen" id="screen-play">
@@ -132,33 +132,56 @@ const PIECES = {
   `;
 })();
 
-const boardNode = document.getElementById("board");
+/* ---------------- DOM refs (THIS was the missing part) ---------------- */
+const boardNode  = document.getElementById("board");
+const turnLabel  = document.getElementById("turnLabel");
+const stateLabel = document.getElementById("stateLabel");
+const statusTop  = document.getElementById("statusTop");
+const lastMoveEl = document.getElementById("lastMove");
+const promoModal = document.getElementById("promoModal");
+const promoBtns  = document.getElementById("promoBtns");
+const gameOverEl = document.getElementById("gameOver");
+
+const buildLabel = document.getElementById("buildLabel");
+if (buildLabel) buildLabel.textContent = "Build " + BUILD;
+
+/* ---------------- Router ---------------- */
 let viewFlipped = false;
 let currentScreen = "play";
 
 function routeTo(screen){
   currentScreen = screen;
 
-  // toggle screens
   document.querySelectorAll(".screen").forEach(s => {
     s.classList.toggle("active", s.id === "screen-" + screen);
   });
 
-  // nav active state
   document.querySelectorAll(".navBtn").forEach(b => {
     const on = b.dataset.screen === screen;
     b.classList.toggle("active", on);
     b.setAttribute("aria-current", on ? "page" : "false");
   });
 
-  // url hash
   history.replaceState(null, "", "#" + screen);
-
 }
 
-// piece: {c:'w'|'b', t:'P'|'N'|'B'|'R'|'Q'|'K'}
-let state;
+// init nav clicks + default route (no render here, render happens after reset())
+document.getElementById("topNav")?.addEventListener("click", (e) => {
+  const btn = e.target.closest(".navBtn");
+  if(!btn) return;
+  routeTo(btn.dataset.screen);
+  // only rerender board if on play screen
+  if(btn.dataset.screen === "play") render();
+});
 
+(function initRouteFromHash(){
+  const h = (location.hash || "#play").replace("#","").trim();
+  const valid = new Set(["play","academy","quick","ladder","unlocks","settings"]);
+  routeTo(valid.has(h) ? h : "play");
+})();
+
+/* ---------------- Game state ---------------- */
+let state;
 reset();
 
 function reset(){
@@ -170,15 +193,16 @@ function reset(){
     history: [],
     lastMove: null,
     castling: { w:{K:true,Q:true}, b:{K:true,Q:true} },
-    enPassant: null, // {r,c} square that can be captured into
-    halfmove: 0, // for 50-move rule
+    enPassant: null,
+    halfmove: 0,
     fullmove: 1,
-    repetition: new Map(), // position key -> count
-    gameOver: null, // {type:'checkmate'|'stalemate'|'draw', reason?:string}
-    pendingPromotion: null, // {from,to,color}
+    repetition: new Map(),
+    gameOver: null,
+    pendingPromotion: null,
   };
 
   bumpRepetition();
+  closePromotionModal();
   render();
 }
 
@@ -196,6 +220,8 @@ function startPosition(){
 }
 
 function render(){
+  if(!boardNode) return;
+
   boardNode.innerHTML = "";
   const oriented = getOrientedSquares();
   const b = state.board;
@@ -204,7 +230,6 @@ function render(){
   const anyMoves = hasAnyLegalMove(b, state.turn, state);
 
   if(!state.gameOver){
-    // determine end states
     if(!anyMoves){
       state.gameOver = inCheck ? {type:"checkmate"} : {type:"stalemate"};
     } else {
@@ -219,12 +244,11 @@ function render(){
     state.gameOver?.type === "draw" ? `Draw (${state.gameOver.reason})` :
     (inCheck ? "Check" : "Playing");
 
-  turnLabel.textContent = state.turn === "w" ? "White" : "Black";
-  stateLabel.textContent = status;
-  statusTop.textContent = (status === "Playing" ? "" : status);
-  lastMoveEl.textContent = state.lastMove ? state.lastMove : "—";
+  if (turnLabel)  turnLabel.textContent  = state.turn === "w" ? "White" : "Black";
+  if (stateLabel) stateLabel.textContent = status;
+  if (statusTop)  statusTop.textContent  = (status === "Playing" ? "" : status);
+  if (lastMoveEl) lastMoveEl.textContent = state.lastMove ? state.lastMove : "—";
 
-  // Highlight king in check
   const kingPos = findKing(b, state.turn);
   const kingKey = kingPos ? `${kingPos.r},${kingPos.c}` : null;
 
@@ -252,18 +276,20 @@ function render(){
     boardNode.appendChild(cell);
   }
 
-  // disable interaction if game over or promotion pending
   const locked = !!state.gameOver || !!state.pendingPromotion;
   boardNode.style.pointerEvents = locked ? "none" : "auto";
-  const overText =
-  state.gameOver?.type === "checkmate" ? "CHECKMATE — press Reset" :
-  state.gameOver?.type === "stalemate" ? "STALEMATE — press Reset" :
-  state.gameOver?.type === "draw" ? `DRAW (${state.gameOver.reason}) — press Reset` :
-  "";
 
-const isOver = !!state.gameOver;
-gameOverEl.classList.toggle("hidden", !isOver);
-gameOverEl.textContent = overText;
+  const overText =
+    state.gameOver?.type === "checkmate" ? "CHECKMATE — press Reset" :
+    state.gameOver?.type === "stalemate" ? "STALEMATE — press Reset" :
+    state.gameOver?.type === "draw" ? `DRAW (${state.gameOver.reason}) — press Reset` :
+    "";
+
+  const isOver = !!state.gameOver;
+  if (gameOverEl){
+    gameOverEl.classList.toggle("hidden", !isOver);
+    gameOverEl.textContent = overText;
+  }
 }
 
 function getOrientedSquares(){
@@ -284,7 +310,6 @@ function onSquareClick(e){
   const b = state.board;
   const p = b[r][c];
 
-  // move attempt
   if(state.selected){
     const target = state.legalTargets.find(m => m.r === r && m.c === c);
     if(target){
@@ -293,7 +318,6 @@ function onSquareClick(e){
     }
   }
 
-  // select piece
   if(p && p.c === state.turn){
     state.selected = {r,c};
     state.legalTargets = legalMovesFrom(b, state.turn, r, c, state);
@@ -313,57 +337,44 @@ function makeMove(from, to, special=null, promoChoice=null){
   const moving = b[from.r][from.c];
   const targetPiece = b[to.r][to.c];
 
-  // halfmove reset on capture or pawn move
   const isPawnMove = moving.t === "P";
   const isCapture = !!targetPiece || special === "ep";
   state.halfmove = (isPawnMove || isCapture) ? 0 : (state.halfmove + 1);
 
-  // clear en passant unless set again
   state.enPassant = null;
 
-  // update castling rights (king/rook move or rook captured)
   updateCastlingRightsOnMove(from, to, moving, targetPiece, special);
 
-  // execute special moves
   if(special === "castleK" || special === "castleQ"){
-    // move king
     b[to.r][to.c] = moving;
     b[from.r][from.c] = null;
 
-    // move rook
     const row = moving.c === "w" ? 7 : 0;
     if(special === "castleK"){
-      // rook h -> f
       b[row][5] = b[row][7];
       b[row][7] = null;
     } else {
-      // rook a -> d
       b[row][3] = b[row][0];
       b[row][0] = null;
     }
   } else if(special === "ep"){
-    // pawn moves to target and captures pawn behind
     b[to.r][to.c] = moving;
     b[from.r][from.c] = null;
     const dir = moving.c === "w" ? 1 : -1;
     b[to.r + dir][to.c] = null;
   } else {
-    // normal
     b[to.r][to.c] = moving;
     b[from.r][from.c] = null;
   }
 
-  // set en passant target after a double pawn push
   if(moving.t === "P" && Math.abs(to.r - from.r) === 2){
     const midR = (to.r + from.r) / 2;
     state.enPassant = { r: midR, c: from.c };
   }
 
-  // promotion
   if(moving.t === "P"){
     if((moving.c === "w" && to.r === 0) || (moving.c === "b" && to.r === 7)){
       if(!promoChoice){
-        // pause game to choose piece
         state.pendingPromotion = { from, to, color: moving.c };
         openPromotionModal(moving.c);
         state.selected = null;
@@ -371,37 +382,31 @@ function makeMove(from, to, special=null, promoChoice=null){
         render();
         return;
       } else {
-        moving.t = promoChoice; // Q/R/B/N
+        moving.t = promoChoice;
       }
     }
   }
 
-  // last move string (simple)
   state.lastMove = formatMove(from, to, moving, special, promoChoice, isCapture);
 
-  // switch turn
   state.selected = null;
   state.legalTargets = [];
   state.turn = (state.turn === "w") ? "b" : "w";
   if(state.turn === "w") state.fullmove += 1;
 
-  // update repetition + end checks
   bumpRepetition();
-  state.gameOver = null; // recompute on render
+  state.gameOver = null;
   render();
 }
 
 function updateCastlingRightsOnMove(from, to, moving, captured, special){
   const side = moving.c;
-  const other = side === "w" ? "b" : "w";
 
-  // king moved => lose both
   if(moving.t === "K"){
     state.castling[side].K = false;
     state.castling[side].Q = false;
   }
 
-  // rook moved from starting squares => lose that side
   if(moving.t === "R"){
     if(side === "w" && from.r === 7 && from.c === 0) state.castling.w.Q = false;
     if(side === "w" && from.r === 7 && from.c === 7) state.castling.w.K = false;
@@ -409,16 +414,12 @@ function updateCastlingRightsOnMove(from, to, moving, captured, special){
     if(side === "b" && from.r === 0 && from.c === 7) state.castling.b.K = false;
   }
 
-  // rook captured on starting squares => lose that side
   if(captured && captured.t === "R"){
     if(captured.c === "w" && to.r === 7 && to.c === 0) state.castling.w.Q = false;
     if(captured.c === "w" && to.r === 7 && to.c === 7) state.castling.w.K = false;
     if(captured.c === "b" && to.r === 0 && to.c === 0) state.castling.b.Q = false;
     if(captured.c === "b" && to.r === 0 && to.c === 7) state.castling.b.K = false;
   }
-
-  // en passant captures don't capture on "to" square, so handle captured pawn not rook: ignore
-  // castling special already handled via king move above
 }
 
 function undo(){
@@ -429,9 +430,7 @@ function undo(){
 }
 
 function snapshotState(){
-  // deep copy board
   const b = state.board.map(row => row.map(p => p ? ({c:p.c, t:p.t}) : null));
-  // deep copy repetition map (small)
   const rep = new Map(state.repetition);
   return {
     board: b,
@@ -450,7 +449,7 @@ function snapshotState(){
   };
 }
 
-// ---------------- RULES ----------------
+/* ---------------- RULES ---------------- */
 
 function legalMovesFrom(b, side, r, c, st){
   const p = b[r][c];
@@ -461,7 +460,6 @@ function legalMovesFrom(b, side, r, c, st){
 
   for(const m of pseudo){
     const bb = applyMoveCopy(b, {r,c}, m, p, st);
-    // also need castling/enPassant state changes for check validation? For check legality we only need resulting board.
     if(!isKingInCheck(bb, side, st, m)) legal.push(m);
   }
 
@@ -508,12 +506,9 @@ function applyMoveCopy(b, from, toMove, movingPiece, st){
     return copy;
   }
 
-  // normal
   copy[to.r][to.c] = fromP;
   copy[from.r][from.c] = null;
 
-  // promo in copy not needed for check legality (except it could matter in rare cases),
-  // but we can just auto-queen for legality filter so we don't allow illegal due to underpromotion.
   if(fromP.t === "P" && ((fromP.c === "w" && to.r === 0) || (fromP.c === "b" && to.r === 7))){
     fromP.t = "Q";
   }
@@ -563,7 +558,6 @@ function pseudoMoves(b, r, c, p, st, attackOnly=false){
     const dir = (side === "w") ? -1 : 1;
     const startRow = (side === "w") ? 6 : 1;
 
-    // pawn attacks
     for(const dc of [-1, 1]){
       const rr = r + dir, cc = c + dc;
       if(!inside(rr,cc)) continue;
@@ -572,9 +566,7 @@ function pseudoMoves(b, r, c, p, st, attackOnly=false){
       } else {
         const target = at(rr,cc);
         if(target && target.c === enemy) res.push({r:rr, c:cc});
-        // en passant
         if(st.enPassant && st.enPassant.r === rr && st.enPassant.c === cc){
-          // only if there is an enemy pawn adjacent that just moved two squares
           res.push({r:rr, c:cc, special:"ep"});
         }
       }
@@ -582,11 +574,9 @@ function pseudoMoves(b, r, c, p, st, attackOnly=false){
 
     if(attackOnly) return res;
 
-    // forward
     const one = r + dir;
     if(inside(one,c) && !at(one,c)){
       res.push({r:one, c});
-      // two squares
       const two = r + 2*dir;
       if(r === startRow && inside(two,c) && !at(two,c)){
         res.push({r:two, c});
@@ -619,20 +609,15 @@ function pseudoMoves(b, r, c, p, st, attackOnly=false){
 
     if(attackOnly) return res;
 
-    // castling (only when generating real moves)
     const homeRow = side === "w" ? 7 : 0;
     if(r === homeRow && c === 4){
       const rights = st.castling[side];
-
-      // can't castle out of / through check
       if(!isSquareAttacked(b, homeRow, 4, enemy, st)){
-        // king side: squares f,g empty and not attacked; rook at h
         if(rights.K && !at(homeRow,5) && !at(homeRow,6) && at(homeRow,7)?.t === "R" && at(homeRow,7)?.c === side){
           if(!isSquareAttacked(b, homeRow, 5, enemy, st) && !isSquareAttacked(b, homeRow, 6, enemy, st)){
             res.push({r:homeRow, c:6, special:"castleK"});
           }
         }
-        // queen side: squares d,c,b empty; d,c not attacked; rook at a
         if(rights.Q && !at(homeRow,3) && !at(homeRow,2) && !at(homeRow,1) && at(homeRow,0)?.t === "R" && at(homeRow,0)?.c === side){
           if(!isSquareAttacked(b, homeRow, 3, enemy, st) && !isSquareAttacked(b, homeRow, 2, enemy, st)){
             res.push({r:homeRow, c:2, special:"castleQ"});
@@ -670,7 +655,7 @@ function pseudoMoves(b, r, c, p, st, attackOnly=false){
   return res;
 }
 
-// ---------------- DRAWS ----------------
+/* ---------------- DRAWS ---------------- */
 
 function checkDraws(){
   if(state.halfmove >= 100) return "50-move";
@@ -692,7 +677,6 @@ function isThreefold(){
 }
 
 function positionKey(){
-  // FEN-like minimal: pieces + turn + castling + en-passant file (only file matters for repetition)
   const b = state.board;
   let s = "";
   for(let r=0;r<8;r++){
@@ -715,11 +699,6 @@ function positionKey(){
 }
 
 function insufficientMaterial(b){
-  // quick/common cases:
-  // K vs K
-  // K+N vs K
-  // K+B vs K
-  // K+B vs K+B on same color squares
   const pieces = [];
   for(let r=0;r<8;r++){
     for(let c=0;c<8;c++){
@@ -734,10 +713,8 @@ function insufficientMaterial(b){
   const hasPawnRookQueen = nonKings.some(x => x.t === "P" || x.t === "R" || x.t === "Q");
   if(hasPawnRookQueen) return null;
 
-  // only bishops/knights
-  if(nonKings.length === 1) return "insufficient"; // single minor piece
+  if(nonKings.length === 1) return "insufficient";
 
-  // bishops only
   const allBishops = nonKings.every(x => x.t === "B");
   if(allBishops){
     const colors = nonKings.map(x => (x.r + x.c) % 2);
@@ -748,9 +725,10 @@ function insufficientMaterial(b){
   return null;
 }
 
-// ---------------- PROMOTION UI ----------------
+/* ---------------- PROMOTION UI ---------------- */
 
 function openPromotionModal(color){
+  if(!promoBtns || !promoModal) return;
   promoBtns.innerHTML = "";
   const choices = ["Q","R","B","N"];
   for(const t of choices){
@@ -764,23 +742,22 @@ function openPromotionModal(color){
 }
 
 function closePromotionModal(){
+  if(!promoModal || !promoBtns) return;
   promoModal.classList.add("hidden");
   promoBtns.innerHTML = "";
-  state.pendingPromotion = null;
+  if(state) state.pendingPromotion = null;
 }
 
 function choosePromotion(t){
   const pend = state.pendingPromotion;
   if(!pend) return;
   closePromotionModal();
-  // now finish the move with chosen piece
   makeMove(pend.from, pend.to, null, t);
 }
 
-// ---------------- MOVE TEXT ----------------
+/* ---------------- MOVE TEXT ---------------- */
 
 function formatMove(from, to, moving, special, promoChoice, isCapture){
-  // simple readable, not full SAN
   const file = c => String.fromCharCode(97 + c);
   const rank = r => String(8 - r);
 
@@ -797,3 +774,9 @@ function formatMove(from, to, moving, special, promoChoice, isCapture){
   if(special === "ep") return `${s} e.p.`;
   return s;
 }
+
+/* ---------------- Buttons wiring ---------------- */
+document.getElementById("btnUndo")?.addEventListener("click", undo);
+document.getElementById("btnReset")?.addEventListener("click", reset);
+document.getElementById("btnFlip")?.addEventListener("click", () => { viewFlipped = !viewFlipped; render(); });
+
