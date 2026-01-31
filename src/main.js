@@ -1,3 +1,4 @@
+Alert("MAIN.JS LOADED");
 // Become a Chess Master - v2: real chess rules (castling, en passant, promotion choice, draws)
 
 const BUILD = "v2.03-router-001"; // change this every time
