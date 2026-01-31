@@ -874,4 +874,3 @@ function formatMove(from, to, moving, special, promoChoice, isCapture){
   if(special === "ep") return `${s} e.p.`;
   return s;
 }
-
