@@ -133,6 +133,7 @@ const PIECES = {
 })();
 
 const boardNode = document.getElementById("board");
+let viewFlipped = false;
 let currentScreen = "play";
 
 function routeTo(screen){
@@ -189,8 +190,6 @@ document.getElementById("btnFlip").addEventListener("click", () => {
   viewFlipped = !viewFlipped;
   render();
 });
-
-let viewFlipped = false;
 
 // piece: {c:'w'|'b', t:'P'|'N'|'B'|'R'|'Q'|'K'}
 let state;
