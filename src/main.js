@@ -26,6 +26,7 @@ const boardEl = document.getElementById("board");
       <div class="boardWrap">
         <div id="board"></div>
       </div>
+      <div id="gameOver" class="gameOver hidden"></div>
 
       <aside class="side">
         <div class="row">
@@ -55,6 +56,7 @@ const boardEl = document.getElementById("board");
 })();
 
 // re-grab board after shell mount
+const gameOverEl = document.getElementById("gameOver");
 const boardNode = document.getElementById("board");
 const turnLabel = document.getElementById("turnLabel");
 const stateLabel = document.getElementById("stateLabel");
