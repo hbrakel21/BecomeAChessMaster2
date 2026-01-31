@@ -192,11 +192,6 @@ document.getElementById("topNav").addEventListener("click", (e) => {
   routeTo(valid.has(h) ? h : "play");
 })();
 
-  const h = (location.hash || "").replace("#","").trim();
-  const valid = new Set(["play","academy","quick","ladder","unlocks","settings"]);
-  routeTo(valid.has(h) ? h : "play");
-})();
-
 const turnLabel = document.getElementById("turnLabel");
 const stateLabel = document.getElementById("stateLabel");
 const statusTop = document.getElementById("statusTop"); 
