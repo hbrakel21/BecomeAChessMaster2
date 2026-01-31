@@ -154,7 +154,6 @@ function routeTo(screen){
   // url hash
   history.replaceState(null, "", "#" + screen);
 
-    if(screen === "play") render();
 }
 
 // piece: {c:'w'|'b', t:'P'|'N'|'B'|'R'|'Q'|'K'}
