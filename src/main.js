@@ -28,22 +28,24 @@ const PIECES = {
 (function mountAppShell(){
   document.body.innerHTML = `
     <div class="app">
-      <div class="header">
-        <div>
-          <h1>Become a Chess Master</h1>
-          <div class="sub">Local 2-player • legal moves • real rules • <span id="buildLabel"></span></div>
+<div class="header">
+  <div>
+    <h1>Become a Chess Master</h1>
+    <div class="sub">Local 2-player • legal moves • real rules • <span id="buildLabel"></span></div>
 
-          <div class="topNav" id="topNav">
-            <button class="navBtn" data-screen="play">Play</button>
-            <button class="navBtn" data-screen="academy">Academy</button>
-            <button class="navBtn" data-screen="quick">Quick Match</button>
-            <button class="navBtn" data-screen="ladder">Ladder</button>
-            <button class="navBtn" data-screen="unlocks">Unlocks</button>
-            <button class="navBtn" data-screen="settings">Settings</button>
-          </div>
-        </div>
-        <div class="sub" id="statusTop"></div>
-      <div class="sub" id="buildLabel">Build —</div>
+    <div class="topNav" id="topNav">
+      <button class="navBtn" data-screen="play">Play</button>
+      <button class="navBtn" data-screen="academy">Academy</button>
+      <button class="navBtn" data-screen="quick">Quick Match</button>
+      <button class="navBtn" data-screen="ladder">Ladder</button>
+      <button class="navBtn" data-screen="unlocks">Unlocks</button>
+      <button class="navBtn" data-screen="settings">Settings</button>
+    </div>
+  </div>
+
+  <div class="sub" id="statusTop"></div>
+</div>
+     
 
       <main>
         <section class="screen" id="screen-play">
@@ -131,10 +133,6 @@ const PIECES = {
   `;
 })();
 
-
-  `;
-})();
-
 const boardNode = document.getElementById("board");
 let currentScreen = "play";
 
@@ -157,14 +155,39 @@ function routeTo(screen){
   // optional: URL hash (nice for refresh)
  history.replaceState(null, "", "#" + screen);
 
-function render(){
-  if(currentScreen !== "play") return;
-  // ...rest of your render stays the same
+let currentScreen = "play";
 
-  // keep board UI fresh when returning to play
-  render();
+function routeTo(screen){
+  currentScreen = screen;
+
+  document.querySelectorAll(".screen").forEach(s => {
+    s.classList.toggle("active", s.id === "screen-" + screen);
+  });
+
+  document.querySelectorAll(".navBtn").forEach(b => {
+    const on = b.dataset.screen === screen;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-current", on ? "page" : "false");
+  });
+
+  history.replaceState(null, "", "#" + screen);
+
+  if(screen === "play") render(); // call your REAL chess render()
 }
 
+document.getElementById("topNav").addEventListener("click", (e) => {
+  const btn = e.target.closest(".navBtn");
+  if(!btn) return;
+  routeTo(btn.dataset.screen);
+});
+
+(function initRoute(){
+  const h = (location.hash || "").replace("#","").trim();
+  const valid = new Set(["play","academy","quick","ladder","unlocks","settings"]);
+  routeTo(valid.has(h) ? h : "play");
+})();
+
+  
 // wire nav clicks
 document.getElementById("topNav").addEventListener("click", (e) => {
   const btn = e.target.closest(".navBtn");
@@ -186,7 +209,7 @@ const lastMoveEl = document.getElementById("lastMove");
 const promoModal = document.getElementById("promoModal");
 const promoBtns = document.getElementById("promoBtns");
 const gameOverEl = document.getElementById("gameOver");
-document.title = `Become a Chess Master (${BUILD})`;
+document.title = "Become a Chess Master (" + BUILD + ")";
 const buildLabel = document.getElementById("buildLabel");
 if(buildLabel) buildLabel.textContent = "Build " + BUILD;
 
