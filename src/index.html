@@ -2,13 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Become a Chess Master</title>
-  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Optional: if you have your own css file, keep it -->
+  <!-- <link rel="stylesheet" href="./src/styles.css" /> -->
+
+  <style>
+    /* minimal so you don't see a blank page while JS mounts */
+    html,body{height:100%;margin:0}
+    body{background:#0b0f14;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  </style>
 </head>
 <body>
-  <h1>Become a Chess Master</h1>
-  <div id="board"></div>
 
-  <script src="main.js"></script>
+  <!-- IMPORTANT: type="module" is what fixes your import error -->
+  <!-- bump ?v= number when testing GitHub Pages caching -->
+  <script type="module" src="./src/main.js?v=206"></script>
+
 </body>
 </html>
