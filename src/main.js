@@ -1,6 +1,6 @@
 // Become a Chess Master - v2: real chess rules (castling, en passant, promotion choice, draws)
 
-const BUILD = "v2.0.3"; // change this every time
+const BUILD = "v2.0.4"; // change this every time
 console.log("[BUILD]", BUILD);
 
 if (window.__chessLoaded) throw new Error("main.js loaded twice");
