@@ -1,4 +1,3 @@
-Alert("MAIN.JS LOADED");
 // Become a Chess Master - v2: real chess rules (castling, en passant, promotion choice, draws)
 
 const BUILD = "v2.0.3"; // change this every time
@@ -192,23 +191,8 @@ document.getElementById("topNav").addEventListener("click", (e) => {
   const valid = new Set(["play","academy","quick","ladder","unlocks","settings"]);
   routeTo(valid.has(h) ? h : "play");
 })();
-{
+
   const h = (location.hash || "").replace("#","").trim();
-  const valid = new Set(["play","academy","quick","ladder","unlocks","settings"]);
-  routeTo(valid.has(h) ? h : "play");
-})();
-
-  
-// wire nav clicks
-document.getElementById("topNav").addEventListener("click", (e) => {
-  const btn = e.target.closest(".navBtn");
-  if(!btn) return;
-  routeTo(btn.dataset.screen);
-});
-
-// initial route from hash
-(function initRoute(){
-  const h = (location.hash || "").replace("#", "").trim();
   const valid = new Set(["play","academy","quick","ladder","unlocks","settings"]);
   routeTo(valid.has(h) ? h : "play");
 })();
