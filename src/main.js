@@ -1,9 +1,25 @@
 // Become a Chess Master - v2: real chess rules (castling, en passant, promotion choice, draws)
 
+if (window.__chessLoaded) throw new Error("main.js loaded twice");
+window.__chessLoaded = true;
+
 const PIECES = {
   w: { K:"♔", Q:"♕", R:"♖", B:"♗", N:"♘", P:"♙" },
   b: { K:"♚", Q:"♛", R:"♜", B:"♝", N:"♞", P:"♟" },
 };
+(function injectRouterStyles(){
+  const css = `
+    .topNav{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}
+    .navBtn{padding:8px 10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:#fff;border-radius:10px;cursor:pointer}
+    .navBtn.active{border-color:rgba(212,175,55,.7);box-shadow:0 0 0 2px rgba(212,175,55,.15) inset}
+    .screen{display:none}
+    .screen.active{display:block}
+  `;
+  const style = document.createElement("style");
+  style.id = "routerStyles";
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
 
 (function mountAppShell(){
   document.body.innerHTML = `
@@ -12,58 +28,153 @@ const PIECES = {
         <div>
           <h1>Become a Chess Master</h1>
           <div class="sub">Local 2-player • legal moves • real rules</div>
+
+          <div class="topNav" id="topNav">
+            <button class="navBtn" data-screen="play">Play</button>
+            <button class="navBtn" data-screen="academy">Academy</button>
+            <button class="navBtn" data-screen="quick">Quick Match</button>
+            <button class="navBtn" data-screen="ladder">Ladder</button>
+            <button class="navBtn" data-screen="unlocks">Unlocks</button>
+            <button class="navBtn" data-screen="settings">Settings</button>
+          </div>
         </div>
         <div class="sub" id="statusTop"></div>
       </div>
 
-<div class="boardWrap">
-  <div id="board"></div>
-  <div id="gameOver" class="gameOver hidden"></div>
-</div>
-
-      <aside class="side">
-        <div class="row">
-          <div>
-            <div class="label">Turn</div>
-            <div class="value" id="turnLabel">—</div>
+      <main>
+        <section class="screen" id="screen-play">
+          <div class="boardWrap">
+            <div id="board"></div>
+            <div id="gameOver" class="gameOver hidden"></div>
           </div>
-          <div>
-            <div class="label">State</div>
-            <div class="value" id="stateLabel">—</div>
+
+          <aside class="side">
+            <div class="row">
+              <div>
+                <div class="label">Turn</div>
+                <div class="value" id="turnLabel">—</div>
+              </div>
+              <div>
+                <div class="label">State</div>
+                <div class="value" id="stateLabel">—</div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div>
+                <div class="label">Last move</div>
+                <div class="value" id="lastMove">—</div>
+              </div>
+            </div>
+
+            <div class="btnRow">
+              <button id="btnUndo">Undo</button>
+              <button id="btnReset">Reset</button>
+              <button id="btnFlip">Flip board</button>
+            </div>
+
+            <div class="small">
+              Includes: castling, en passant, promotion choice, 50-move, repetition, insufficient material. <br/>
+              Not yet: clocks, PGN export, AI, learn mode.
+            </div>
+          </aside>
+
+          <div id="promoModal" class="modal hidden" role="dialog" aria-modal="true">
+            <div class="modalCard">
+              <div class="modalTitle">Promote to</div>
+              <div class="modalBtns" id="promoBtns"></div>
+              <div class="modalHint">Click a piece</div>
+            </div>
           </div>
-        </div>
+        </section>
 
-        <div class="row">
-          <div>
-            <div class="label">Last move</div>
-            <div class="value" id="lastMove">—</div>
+        <section class="screen" id="screen-academy">
+          <div class="side">
+            <div class="label">Academy</div>
+            <div class="small">Next: modules, lessons, drills, tests, XP.</div>
           </div>
-        </div>
+        </section>
 
-        <div class="btnRow">
-          <button id="btnUndo">Undo</button>
-          <button id="btnReset">Reset</button>
-          <button id="btnFlip">Flip board</button>
-        </div>
+        <section class="screen" id="screen-quick">
+          <div class="side">
+            <div class="label">Quick Match vs AI</div>
+            <div class="small">Next: Easy, Medium, Hard buttons + start game.</div>
+          </div>
+        </section>
 
-        <div class="small">
-          Includes: castling, en passant, promotion choice, 50-move, repetition, insufficient material. <br/>
-          Not yet: clocks, PGN export, AI, learn mode.
-        </div>
-      </aside>
+        <section class="screen" id="screen-ladder">
+          <div class="side">
+            <div class="label">Ladder</div>
+            <div class="small">Next: rank progression + scaling AI.</div>
+          </div>
+        </section>
 
-      <div id="promoModal" class="modal hidden" role="dialog" aria-modal="true">
-        <div class="modalCard">
-          <div class="modalTitle">Promote to</div>
-          <div class="modalBtns" id="promoBtns"></div>
-          <div class="modalHint">Click a piece</div>
-        </div>
-      </div>
+        <section class="screen" id="screen-unlocks">
+          <div class="side">
+            <div class="label">Unlocks</div>
+            <div class="small">Next: registry-driven list, locked/unlocked states.</div>
+          </div>
+        </section>
+
+        <section class="screen" id="screen-settings">
+          <div class="side">
+            <div class="label">Settings</div>
+            <div class="small">Next: toggles like show legal moves, flip default, theme.</div>
+          </div>
+        </section>
+      </main>
     </div>
   `;
 })();
 
+
+  `;
+})();
+
 const boardNode = document.getElementById("board");
+let currentScreen = "play";
+
+function routeTo(screen){
+  currentScreen = screen;
+
+  // toggle screens
+  const screens = document.querySelectorAll(".screen");
+  screens.forEach(s => s.classList.remove("active"));
+  const el = document.getElementById(`screen-${screen}`);
+  if(el) el.classList.add("active");
+
+  // nav active state
+  document.querySelectorAll(".navBtn").forEach(b => {
+    const on = b.dataset.screen === screen;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-current", on ? "page" : "false");
+  });
+
+  // optional: URL hash (nice for refresh)
+  history.replaceState(null, "", `#${screen}`);
+
+function render(){
+  if(currentScreen !== "play") return;
+  // ...rest of your render stays the same
+
+  // keep board UI fresh when returning to play
+  if(screen === "play") render();
+}
+
+// wire nav clicks
+document.getElementById("topNav").addEventListener("click", (e) => {
+  const btn = e.target.closest(".navBtn");
+  if(!btn) return;
+  routeTo(btn.dataset.screen);
+});
+
+// initial route from hash
+(function initRoute(){
+  const h = (location.hash || "").replace("#", "").trim();
+  const valid = new Set(["play","academy","quick","ladder","unlocks","settings"]);
+  routeTo(valid.has(h) ? h : "play");
+})();
+
 const turnLabel = document.getElementById("turnLabel");
 const stateLabel = document.getElementById("stateLabel");
 const statusTop = document.getElementById("statusTop");
