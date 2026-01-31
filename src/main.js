@@ -160,28 +160,39 @@ let currentScreen = "play";
 function routeTo(screen){
   currentScreen = screen;
 
+  // toggle screens
   document.querySelectorAll(".screen").forEach(s => {
     s.classList.toggle("active", s.id === "screen-" + screen);
   });
 
+  // nav active state
   document.querySelectorAll(".navBtn").forEach(b => {
     const on = b.dataset.screen === screen;
     b.classList.toggle("active", on);
     b.setAttribute("aria-current", on ? "page" : "false");
   });
 
+  // url hash
   history.replaceState(null, "", "#" + screen);
 
-  if(screen === "play") render(); // call your REAL chess render()
+  // when coming back to play, re-render board
+  if(screen === "play") render();
 }
 
+// wire nav clicks
 document.getElementById("topNav").addEventListener("click", (e) => {
   const btn = e.target.closest(".navBtn");
   if(!btn) return;
   routeTo(btn.dataset.screen);
 });
 
+// initial route from hash
 (function initRoute(){
+  const h = (location.hash || "").replace("#", "").trim();
+  const valid = new Set(["play","academy","quick","ladder","unlocks","settings"]);
+  routeTo(valid.has(h) ? h : "play");
+})();
+{
   const h = (location.hash || "").replace("#","").trim();
   const valid = new Set(["play","academy","quick","ladder","unlocks","settings"]);
   routeTo(valid.has(h) ? h : "play");
