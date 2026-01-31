@@ -133,64 +133,45 @@ const PIECES = {
 })();
 
 const boardNode = document.getElementById("board");
-let currentScreen = "play";
-
-function routeTo(screen){
-  currentScreen = screen;
-
-  // toggle screens
-  const screens = document.querySelectorAll(".screen");
-  screens.forEach(s => s.classList.remove("active"));
- const el = document.getElementById("screen-" + screen);
-  if(el) el.classList.add("active");
-
-  // nav active state
-  document.querySelectorAll(".navBtn").forEach(b => {
-    const on = b.dataset.screen === screen;
-    b.classList.toggle("active", on);
-    b.setAttribute("aria-current", on ? "page" : "false");
-  });
-
-  // optional: URL hash (nice for refresh)
- history.replaceState(null, "", "#" + screen);
 
 let currentScreen = "play";
 
 function routeTo(screen){
   currentScreen = screen;
 
-  // toggle screens
+  // screens
   document.querySelectorAll(".screen").forEach(s => {
     s.classList.toggle("active", s.id === "screen-" + screen);
   });
 
-  // nav active state
+  // nav
   document.querySelectorAll(".navBtn").forEach(b => {
     const on = b.dataset.screen === screen;
     b.classList.toggle("active", on);
     b.setAttribute("aria-current", on ? "page" : "false");
   });
 
-  // url hash
+  // hash
   history.replaceState(null, "", "#" + screen);
 
-  // when coming back to play, re-render board
+  // when returning to play, repaint
   if(screen === "play") render();
 }
 
-// wire nav clicks
+// nav clicks
 document.getElementById("topNav").addEventListener("click", (e) => {
   const btn = e.target.closest(".navBtn");
   if(!btn) return;
   routeTo(btn.dataset.screen);
 });
 
-// initial route from hash
+// initial route
 (function initRoute(){
   const h = (location.hash || "").replace("#", "").trim();
   const valid = new Set(["play","academy","quick","ladder","unlocks","settings"]);
   routeTo(valid.has(h) ? h : "play");
 })();
+
 
 const turnLabel = document.getElementById("turnLabel");
 const stateLabel = document.getElementById("stateLabel");
