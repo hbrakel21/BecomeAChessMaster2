@@ -204,4 +204,17 @@ button{
 
 .hidden{ display:none; }
 
+  (function injectRouterStyles(){
+  const css = `
+    .topNav{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}
+    .navBtn{padding:8px 10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:#fff;border-radius:10px;cursor:pointer}
+    .navBtn.active{border-color:rgba(212,175,55,.7);box-shadow:0 0 0 2px rgba(212,175,55,.15) inset}
+    .screen{display:none}
+    .screen.active{display:block}
+  `;
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
+
 
