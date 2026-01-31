@@ -186,4 +186,22 @@ button{
   color: #a9a9ad;
   font-size: 12px;
 }
+  .boardWrap{ position: relative; }
+
+.gameOver{
+  position:absolute;
+  inset: 12px;
+  display:grid;
+  place-items:center;
+  text-align:center;
+  font-weight:900;
+  font-size: clamp(18px, 3vmin, 34px);
+  background: rgba(0,0,0,.55);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 14px;
+  backdrop-filter: blur(6px);
+}
+
+.hidden{ display:none; }
+
 
