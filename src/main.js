@@ -1,7 +1,7 @@
 Alert("MAIN.JS LOADED");
 // Become a Chess Master - v2: real chess rules (castling, en passant, promotion choice, draws)
 
-const BUILD = "v2.03-router-001"; // change this every time
+const BUILD = "v2.0.3"; // change this every time
 console.log("[BUILD]", BUILD);
 
 if (window.__chessLoaded) throw new Error("main.js loaded twice");
@@ -43,7 +43,7 @@ const PIECES = {
           </div>
         </div>
         <div class="sub" id="statusTop"></div>
-      </div>
+      <div class="sub" id="buildLabel">Build —</div>
 
       <main>
         <section class="screen" id="screen-play">
@@ -144,7 +144,7 @@ function routeTo(screen){
   // toggle screens
   const screens = document.querySelectorAll(".screen");
   screens.forEach(s => s.classList.remove("active"));
-  const el = document.getElementById(`screen-${screen}`);
+ const el = document.getElementById("screen-" + screen);
   if(el) el.classList.add("active");
 
   // nav active state
@@ -155,14 +155,14 @@ function routeTo(screen){
   });
 
   // optional: URL hash (nice for refresh)
-  history.replaceState(null, "", `#${screen}`);
+ history.replaceState(null, "", "#" + screen);
 
 function render(){
   if(currentScreen !== "play") return;
   // ...rest of your render stays the same
 
   // keep board UI fresh when returning to play
-  if(screen === "play") render();
+  render();
 }
 
 // wire nav clicks
@@ -181,14 +181,14 @@ document.getElementById("topNav").addEventListener("click", (e) => {
 
 const turnLabel = document.getElementById("turnLabel");
 const stateLabel = document.getElementById("stateLabel");
-const statusTop = document.getElementById("statusTop");
+const statusTop = document.getElementById("statusTop"); 
 const lastMoveEl = document.getElementById("lastMove");
 const promoModal = document.getElementById("promoModal");
 const promoBtns = document.getElementById("promoBtns");
 const gameOverEl = document.getElementById("gameOver");
 document.title = `Become a Chess Master (${BUILD})`;
 const buildLabel = document.getElementById("buildLabel");
-if(buildLabel) buildLabel.textContent = BUILD;
+if(buildLabel) buildLabel.textContent = "Build " + BUILD;
 
 document.getElementById("btnUndo").addEventListener("click", undo);
 document.getElementById("btnReset").addEventListener("click", reset);
