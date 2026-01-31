@@ -13,9 +13,8 @@ console.log("[BUILD]", BUILD);
 let currentScreen = "home";
 
 /* =========================
-   Boot
+   Boot order matters
    ========================= */
-
 injectShellStyles();
 mountAppShell();
 setBuildLabels();
@@ -34,7 +33,6 @@ renderIfPlay();
 /* =========================
    Router
    ========================= */
-
 function routeTo(screen) {
   currentScreen = screen;
 
@@ -48,7 +46,7 @@ function routeTo(screen) {
     b.setAttribute("aria-current", on ? "page" : "false");
   });
 
-  // hide nav on home for a cleaner first impression
+  // cleaner first impression: hide nav on home
   const topNav = document.getElementById("topNav");
   if (topNav) topNav.classList.toggle("hidden", screen === "home");
 
@@ -69,7 +67,6 @@ function renderIfPlay() {
 /* =========================
    Wiring
    ========================= */
-
 function initTopNav() {
   const nav = document.getElementById("topNav");
   if (!nav) return;
@@ -82,27 +79,18 @@ function initTopNav() {
 }
 
 function initMainMenu() {
-  const home = document.getElementById("screen-home");
-  if (!home) return;
-
-  home.addEventListener("click", (e) => {
-    const go = e.target.closest("[data-go]")?.dataset?.go;
-    if (go) routeTo(go);
+  // bind directly to each button (hard to break)
+  document.querySelectorAll("[data-go]").forEach((btn) => {
+    btn.addEventListener("click", () => routeTo(btn.dataset.go));
   });
 
   const btnContinue = document.getElementById("btnContinue");
   const continueHint = document.getElementById("continueHint");
 
-  function refreshContinueLabel() {
-    const last = safeLastScreen();
-    if (continueHint) continueHint.textContent = `Resume: ${last}`;
-  }
+  const last = safeLastScreen();
+  if (continueHint) continueHint.textContent = `Resume: ${last}`;
 
-  refreshContinueLabel();
-
-  btnContinue?.addEventListener("click", () => {
-    routeTo(safeLastScreen());
-  });
+  btnContinue?.addEventListener("click", () => routeTo(safeLastScreen()));
 }
 
 function initKeyboardShortcuts() {
@@ -138,7 +126,6 @@ function wirePlayButtons() {
 /* =========================
    Helpers
    ========================= */
-
 function safeLastScreen() {
   let last = "play";
   try { last = localStorage.getItem("lastScreen") || "play"; } catch {}
@@ -155,9 +142,8 @@ function setBuildLabels() {
 }
 
 /* =========================
-   Shell
+   Shell (layout only)
    ========================= */
-
 function mountAppShell() {
   document.body.innerHTML = `
     <div class="app">
@@ -167,13 +153,13 @@ function mountAppShell() {
           <div class="sub">Local 2-player • legal moves • real rules • <span id="buildLabel"></span></div>
 
           <div class="topNav" id="topNav">
-            <button class="navBtn" data-screen="home">Menu</button>
-            <button class="navBtn" data-screen="play">Play</button>
-            <button class="navBtn" data-screen="academy">Academy</button>
-            <button class="navBtn" data-screen="quick">Quick Match</button>
-            <button class="navBtn" data-screen="ladder">Ladder</button>
-            <button class="navBtn" data-screen="unlocks">Unlocks</button>
-            <button class="navBtn" data-screen="settings">Settings</button>
+            <button type="button" class="navBtn" data-screen="home">Menu</button>
+            <button type="button" class="navBtn" data-screen="play">Play</button>
+            <button type="button" class="navBtn" data-screen="academy">Academy</button>
+            <button type="button" class="navBtn" data-screen="quick">Quick Match</button>
+            <button type="button" class="navBtn" data-screen="ladder">Ladder</button>
+            <button type="button" class="navBtn" data-screen="unlocks">Unlocks</button>
+            <button type="button" class="navBtn" data-screen="settings">Settings</button>
           </div>
         </div>
 
@@ -188,19 +174,19 @@ function mountAppShell() {
               <p class="menuSub">Jump in fast, no clutter. Your current build is <span id="buildLabelHome"></span>.</p>
 
               <div class="menuRow">
-                <button class="menuBtn menuBtnWide" id="btnContinue">
+                <button type="button" class="menuBtn menuBtnWide" id="btnContinue">
                   Continue
                   <div class="menuBtnSmall" id="continueHint">Resume where you left off</div>
                 </button>
               </div>
 
               <div class="menuGrid" style="margin-top:10px">
-                <button class="menuBtn" data-go="play">Play<div class="menuBtnSmall">Local 2-player, real rules</div></button>
-                <button class="menuBtn" data-go="quick">Quick Match<div class="menuBtnSmall">AI buttons later</div></button>
-                <button class="menuBtn" data-go="academy">Academy<div class="menuBtnSmall">Learn by doing</div></button>
-                <button class="menuBtn" data-go="ladder">Ladder<div class="menuBtnSmall">Progression later</div></button>
-                <button class="menuBtn" data-go="unlocks">Unlocks<div class="menuBtnSmall">Rewards later</div></button>
-                <button class="menuBtn" data-go="settings">Settings<div class="menuBtnSmall">Helpers and visuals</div></button>
+                <button type="button" class="menuBtn" data-go="play">Play<div class="menuBtnSmall">Local 2-player, real rules</div></button>
+                <button type="button" class="menuBtn" data-go="quick">Quick Match<div class="menuBtnSmall">AI later</div></button>
+                <button type="button" class="menuBtn" data-go="academy">Academy<div class="menuBtnSmall">Learn by doing</div></button>
+                <button type="button" class="menuBtn" data-go="ladder">Ladder<div class="menuBtnSmall">Progression later</div></button>
+                <button type="button" class="menuBtn" data-go="unlocks">Unlocks<div class="menuBtnSmall">Rewards later</div></button>
+                <button type="button" class="menuBtn" data-go="settings">Settings<div class="menuBtnSmall">Helpers and visuals</div></button>
               </div>
 
               <div class="menuHint">Tip: press Escape anytime to return here.</div>
@@ -234,14 +220,14 @@ function mountAppShell() {
             </div>
 
             <div class="btnRow">
-              <button id="btnUndo">Undo</button>
-              <button id="btnReset">Reset</button>
-              <button id="btnFlip">Flip board</button>
+              <button type="button" id="btnUndo">Undo</button>
+              <button type="button" id="btnReset">Reset</button>
+              <button type="button" id="btnFlip">Flip board</button>
             </div>
 
             <div class="small">
               Includes: castling, en passant, promotion choice, 50-move, repetition, insufficient material.<br/>
-              Not yet: clocks, PGN export, AI, learn mode.
+              Not yet: clocks, PGN export, AI, full academy.
             </div>
           </aside>
 
@@ -256,33 +242,10 @@ function mountAppShell() {
 
         <section class="screen" id="screen-academy"></section>
 
-        <section class="screen" id="screen-quick">
-          <div class="side">
-            <div class="label">Quick Match</div>
-            <div class="small">Next: Easy, Medium, Hard buttons + start game.</div>
-          </div>
-        </section>
-
-        <section class="screen" id="screen-ladder">
-          <div class="side">
-            <div class="label">Ladder</div>
-            <div class="small">Next: rank progression + scaling AI.</div>
-          </div>
-        </section>
-
-        <section class="screen" id="screen-unlocks">
-          <div class="side">
-            <div class="label">Unlocks</div>
-            <div class="small">Next: registry-driven list, locked/unlocked states.</div>
-          </div>
-        </section>
-
-        <section class="screen" id="screen-settings">
-          <div class="side">
-            <div class="label">Settings</div>
-            <div class="small">Next: toggles like show legal moves, flip default, theme.</div>
-          </div>
-        </section>
+        <section class="screen" id="screen-quick"><div class="side"><div class="label">Quick Match</div><div class="small">Next: AI</div></div></section>
+        <section class="screen" id="screen-ladder"><div class="side"><div class="label">Ladder</div><div class="small">Next: progression</div></div></section>
+        <section class="screen" id="screen-unlocks"><div class="side"><div class="label">Unlocks</div><div class="small">Next: rewards</div></div></section>
+        <section class="screen" id="screen-settings"><div class="side"><div class="label">Settings</div><div class="small">Next: toggles</div></div></section>
       </main>
     </div>
   `;
@@ -314,4 +277,3 @@ function injectShellStyles() {
   style.textContent = css;
   document.head.appendChild(style);
 }
-
