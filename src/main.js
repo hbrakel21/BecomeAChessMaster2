@@ -1,5 +1,8 @@
 // Become a Chess Master - v2: real chess rules (castling, en passant, promotion choice, draws)
 
+const BUILD = "v2.03-router-001"; // change this every time
+console.log("[BUILD]", BUILD);
+
 if (window.__chessLoaded) throw new Error("main.js loaded twice");
 window.__chessLoaded = true;
 
@@ -27,7 +30,7 @@ const PIECES = {
       <div class="header">
         <div>
           <h1>Become a Chess Master</h1>
-          <div class="sub">Local 2-player • legal moves • real rules</div>
+          <div class="sub">Local 2-player • legal moves • real rules • <span id="buildLabel"></span></div>
 
           <div class="topNav" id="topNav">
             <button class="navBtn" data-screen="play">Play</button>
@@ -182,6 +185,9 @@ const lastMoveEl = document.getElementById("lastMove");
 const promoModal = document.getElementById("promoModal");
 const promoBtns = document.getElementById("promoBtns");
 const gameOverEl = document.getElementById("gameOver");
+document.title = `Become a Chess Master (${BUILD})`;
+const buildLabel = document.getElementById("buildLabel");
+if(buildLabel) buildLabel.textContent = BUILD;
 
 document.getElementById("btnUndo").addEventListener("click", undo);
 document.getElementById("btnReset").addEventListener("click", reset);
