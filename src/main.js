@@ -18,6 +18,20 @@ const PIECES = {
     .navBtn.active{border-color:rgba(212,175,55,.7);box-shadow:0 0 0 2px rgba(212,175,55,.15) inset}
     .screen{display:none}
     .screen.active{display:block}
+
+    /* Main Menu */
+    .menuWrap{min-height:calc(100vh - 140px);display:grid;place-items:center;padding:18px}
+    .menuCard{width:min(820px,100%);padding:22px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);box-shadow:0 12px 50px rgba(0,0,0,.35)}
+    .menuTitle{font-size:22px;font-weight:800;letter-spacing:.2px;margin:0 0 10px}
+    .menuSub{opacity:.85;margin:0 0 16px;line-height:1.35}
+    .menuGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .menuBtn{padding:14px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#fff;cursor:pointer;text-align:left}
+    .menuBtn:hover{border-color:rgba(212,175,55,.55)}
+    .menuBtnSmall{opacity:.85;font-size:12px;margin-top:6px}
+    .menuRow{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .menuBtnWide{flex:1;min-width:220px}
+    .menuHint{opacity:.75;font-size:12px;margin-top:12px}
+    .hidden{display:none !important}
   `;
   const style = document.createElement("style");
   style.id = "routerStyles";
@@ -34,6 +48,7 @@ const PIECES = {
           <div class="sub">Local 2-player • legal moves • real rules • <span id="buildLabel"></span></div>
 
           <div class="topNav" id="topNav">
+            <button class="navBtn" data-screen="home">Menu</button>
             <button class="navBtn" data-screen="play">Play</button>
             <button class="navBtn" data-screen="academy">Academy</button>
             <button class="navBtn" data-screen="quick">Quick Match</button>
@@ -47,6 +62,33 @@ const PIECES = {
       </div>
 
       <main>
+      <section class="screen" id="screen-home">
+  <div class="menuWrap">
+    <div class="menuCard">
+      <h2 class="menuTitle">Main Menu</h2>
+      <p class="menuSub">Jump in fast, no clutter. Your current build is <span id="buildLabelHome"></span>.</p>
+
+      <div class="menuRow">
+        <button class="menuBtn menuBtnWide" id="btnContinue">
+          Continue
+          <div class="menuBtnSmall" id="continueHint">Resume where you left off</div>
+        </button>
+      </div>
+
+      <div class="menuGrid" style="margin-top:10px">
+        <button class="menuBtn" data-go="play">Play<div class="menuBtnSmall">Local 2-player, real rules</div></button>
+        <button class="menuBtn" data-go="quick">Quick Match<div class="menuBtnSmall">AI buttons later</div></button>
+        <button class="menuBtn" data-go="academy">Academy<div class="menuBtnSmall">Lessons and drills later</div></button>
+        <button class="menuBtn" data-go="ladder">Ladder<div class="menuBtnSmall">Ranked progression later</div></button>
+        <button class="menuBtn" data-go="unlocks">Unlocks<div class="menuBtnSmall">Progress + cosmetics later</div></button>
+        <button class="menuBtn" data-go="settings">Settings<div class="menuBtnSmall">Visuals and helpers</div></button>
+      </div>
+
+      <div class="menuHint">Tip: press Escape anytime to return here.</div>
+    </div>
+  </div>
+</section>
+
         <section class="screen" id="screen-play">
           <div class="boardWrap">
             <div id="board"></div>
@@ -154,6 +196,12 @@ function routeTo(screen){
 
   document.querySelectorAll(".screen").forEach(s => {
     s.classList.toggle("active", s.id === "screen-" + screen);
+      // Steam-ish first impression: hide nav on home
+  const topNav = document.getElementById("topNav");
+  if (topNav) topNav.classList.toggle("hidden", screen === "home");
+
+  // remember where you were
+  try { localStorage.setItem("lastScreen", screen); } catch {}
   });
 
   document.querySelectorAll(".navBtn").forEach(b => {
@@ -175,10 +223,14 @@ document.getElementById("topNav")?.addEventListener("click", (e) => {
 });
 
 (function initRouteFromHash(){
-  const h = (location.hash || "#play").replace("#","").trim();
-  const valid = new Set(["play","academy","quick","ladder","unlocks","settings"]);
-  routeTo(valid.has(h) ? h : "play");
+  const h = (location.hash || "#home").replace("#","").trim();
+  const valid = new Set(["home","play","academy","quick","ladder","unlocks","settings"]);
+  routeTo(valid.has(h) ? h : "home");
 })();
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") routeTo("home");
+});
 
 /* ---------------- Game state ---------------- */
 let state;
@@ -779,4 +831,6 @@ function formatMove(from, to, moving, special, promoChoice, isCapture){
 document.getElementById("btnUndo")?.addEventListener("click", undo);
 document.getElementById("btnReset")?.addEventListener("click", reset);
 document.getElementById("btnFlip")?.addEventListener("click", () => { viewFlipped = !viewFlipped; render(); });
+const buildLabelHome = document.getElementById("buildLabelHome");
+if (buildLabelHome) buildLabelHome.textContent = "Build " + BUILD;
 
